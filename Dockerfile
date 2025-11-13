@@ -23,7 +23,7 @@ COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Expose port
-EXPOSE 5007
+EXPOSE 5023
 
 # Run
 CMD ["python3", "app.py"]
