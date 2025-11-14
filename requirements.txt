@@ -9,3 +9,4 @@ numpy
 typing_extensions
 hydra-core
 omegaconf
+lightning
