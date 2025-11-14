@@ -16,3 +16,4 @@ pandas
 sentencepiece
 youtokentome
 inflect
+webdataset
