@@ -9,5 +9,5 @@ numpy
 typing_extensions
 hydra-core
 omegaconf
-lightning
-huggingface-hub
+pytorch-lightning
+huggingface-hub==0.16.4
