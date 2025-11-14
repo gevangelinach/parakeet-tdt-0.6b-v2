@@ -10,7 +10,7 @@ services:
     ports:
       - "5023:5023"
     volumes:
-  - /home/ubuntu/characterxyz/development/parakeet-tdt-0.6b-v2/model:/app/model
+      - /home/ubuntu/characterxyz/development/parakeet-tdt-0.6b-v2/model:/app/model
     environment:
       PYTHONUNBUFFERED: 1
     deploy:
