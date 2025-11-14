@@ -10,3 +10,4 @@ typing_extensions
 hydra-core
 omegaconf
 lightning
+huggingface-hub
