@@ -1,29 +1,24 @@
 # Dockerfile
 FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
 
-# Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install Python + essentials
+# Install Python and SoX
 RUN apt-get update && apt-get install -y \
-    python3-pip python3-dev git ffmpeg libsndfile1 \
+    python3 python3-pip python3-dev git ffmpeg libsndfile1 sox \
     && rm -rf /var/lib/apt/lists/*
 
-# Set workdir
 WORKDIR /app
 
-# Copy model (you'll mount it later)
-# We'll mount /app/model at runtime
-
-# Copy app
 COPY app.py .
 COPY requirements.txt .
 
-# Install Python deps
+# Install numpy first (prevents Nemo build error)
+RUN pip3 install --no-cache-dir numpy==1.26.4
+
+# Install all dependencies
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Expose port
 EXPOSE 5023
 
-# Run
 CMD ["python3", "app.py"]
