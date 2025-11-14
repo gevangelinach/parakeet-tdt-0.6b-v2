@@ -16,27 +16,33 @@ RUN apt-get update && apt-get install -y \
 # -------------------------------
 WORKDIR /app
 
-# Copy app and requirements
 COPY app.py .
 COPY requirements.txt .
 
 # -------------------------------
-# Preinstall fixed versions for numpy + typing_extensions
-# (fixes many pip conflicts)
+# Install PyTorch 2.5.1 (required for NeMo 2.5.x)
+# -------------------------------
+RUN pip3 install --no-cache-dir \
+    torch==2.5.1+cu121 \
+    torchaudio==2.5.1+cu121 \
+    --index-url https://download.pytorch.org/whl/cu121
+
+# -------------------------------
+# Preinstall numpy + typing_extensions
 # -------------------------------
 RUN pip3 install --no-cache-dir numpy==1.23.5 typing_extensions==4.10.0
 
 # -------------------------------
-# Install the required packages
+# Install all remaining dependencies
 # -------------------------------
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 # -------------------------------
-# Expose port
+# Expose API port
 # -------------------------------
 EXPOSE 5023
 
 # -------------------------------
-# Entry point
+# Start service
 # -------------------------------
 CMD ["python3", "app.py"]
