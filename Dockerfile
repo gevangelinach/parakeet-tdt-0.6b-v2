@@ -13,10 +13,8 @@ WORKDIR /app
 COPY app.py .
 COPY requirements.txt .
 
-# Install numpy first (compatible with NeMo)
 RUN pip3 install --no-cache-dir numpy==1.23.5 typing_extensions==4.10.0
 
-# Install all dependencies
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 EXPOSE 5023

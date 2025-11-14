@@ -2,7 +2,7 @@ Flask==2.3.3
 torch==2.2.2
 torchaudio==2.2.2
 nemo_toolkit==1.21.0
-nemo_text_processing==1.21.0
+nemo_text_processing==1.0.2
 librosa==0.10.1
 soundfile==0.12.1
 numpy
