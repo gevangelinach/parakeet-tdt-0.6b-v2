@@ -32,3 +32,4 @@ jiwer
 IPython
 lightning
 fiddle
+cloudpickle
