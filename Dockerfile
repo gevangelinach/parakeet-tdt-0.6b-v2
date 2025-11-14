@@ -13,6 +13,9 @@ WORKDIR /app
 COPY app.py .
 COPY requirements.txt .
 
+# 🔥 ADD THIS LINE
+COPY model/ /app/model/
+
 RUN pip3 install --no-cache-dir numpy==1.23.5 typing_extensions==4.10.0
 
 RUN pip3 install --no-cache-dir -r requirements.txt
