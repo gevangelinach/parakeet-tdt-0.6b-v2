@@ -31,3 +31,4 @@ editdistance
 jiwer
 IPython
 lightning
+fiddle
