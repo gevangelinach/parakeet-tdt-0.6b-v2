@@ -17,3 +17,4 @@ sentencepiece
 youtokentome
 inflect
 webdataset
+pyannote
