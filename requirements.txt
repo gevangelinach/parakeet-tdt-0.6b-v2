@@ -20,3 +20,4 @@ webdataset
 pyannote.core==5.0.0
 pyannote.metrics==3.2.1
 pyannote.database==5.0.1
+editdistance
