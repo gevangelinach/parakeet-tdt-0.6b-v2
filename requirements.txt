@@ -1,5 +1,5 @@
 Flask==2.3.3
-nemo_toolkit==2.5.3
+nemo_toolkit==2.4.0
 
 librosa==0.10.1
 soundfile==0.12.1
