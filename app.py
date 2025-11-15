@@ -34,6 +34,8 @@ def transcribe():
     if not file.filename:
         return jsonify({"error": "Empty file"}), 400
 
+    uploaded_path = None
+    mono_path = None
     try:
         # Save uploaded file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
@@ -48,16 +50,18 @@ def transcribe():
 
         # Nemo transcribe
         text_list = asr_model.transcribe([mono_path])
-        text = text_list[0].strip()
-
-        # Clean temp
-        os.unlink(uploaded_path)
-        os.unlink(mono_path)
+        text = getattr(text_list[0], "text", str(text_list[0])).strip()
 
         return jsonify({"transcription": text}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+    finally:
+        # Clean temp files safely
+        for path in [uploaded_path, mono_path]:
+            if path and os.path.exists(path):
+                os.unlink(path)
 
 
 @app.route("/health", methods=["GET"])
