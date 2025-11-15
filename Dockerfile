@@ -35,7 +35,7 @@ RUN pip3 install --no-cache-dir \
 # Install NeMo toolkit 2.5.3
 # (compatible with PyTorch 2.5.1)
 # --------------------------------------
-RUN pip3 install --no-cache-dir nemo_toolkit==2.5.3
+RUN pip3 install --no-cache-dir nemo_toolkit==2.4.0
 
 # --------------------------------------
 # Install all remaining dependencies
