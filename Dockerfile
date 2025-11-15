@@ -3,7 +3,7 @@ FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # --------------------------------------
-# System deps
+# System dependencies
 # --------------------------------------
 RUN apt-get update && apt-get install -y \
     python3 python3-pip python3-dev \
@@ -25,22 +25,25 @@ RUN pip3 install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cu121
 
 # --------------------------------------
-# Install core deps
+# Install required core versions
 # --------------------------------------
-RUN pip3 install --no-cache-dir numpy==1.23.5 typing_extensions==4.10.0
+RUN pip3 install --no-cache-dir \
+    numpy==1.23.5 \
+    typing_extensions==4.10.0
 
 # --------------------------------------
 # Install NeMo toolkit 2.5.3
+# (compatible with PyTorch 2.5.1)
 # --------------------------------------
 RUN pip3 install --no-cache-dir nemo_toolkit==2.5.3
 
 # --------------------------------------
-# Install remaining deps
+# Install all remaining dependencies
 # --------------------------------------
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 # --------------------------------------
-# Expose ONLY the API port
+# Expose ONLY API port (no extra ports)
 # --------------------------------------
 EXPOSE 5023
 
