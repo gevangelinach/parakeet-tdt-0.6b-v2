@@ -31,3 +31,8 @@ IPython
 lightning
 fiddle
 cloudpickle
+
+# --- REQUIRED FOR NeMo ASR ---
+lhotse==1.21.0
+cython
+soundfile
