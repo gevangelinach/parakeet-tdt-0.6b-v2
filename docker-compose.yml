@@ -1,18 +1,22 @@
-#version: "3.8"
-
 services:
   parakeet-tdt-0.6b-v2-stt:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: parakeet-tdt-0.6b-v2-stt
     image: parakeet-tdt-0.6b-v2-stt:latest
+    container_name: parakeet-tdt-0.6b-v2-stt
+
     ports:
       - "5023:5023"
+
     volumes:
       - /home/ubuntu/characterxyz/development/parakeet-tdt-0.6b-v2/model:/app/model
+
     environment:
       PYTHONUNBUFFERED: 1
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+
     deploy:
       resources:
         reservations:
@@ -20,4 +24,5 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
     restart: unless-stopped
