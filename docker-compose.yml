@@ -3,15 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: parakeet-tdt-0.6b-v2-stt:latest
     container_name: parakeet-tdt-0.6b-v2-stt
-
-    entrypoint: ["python3", "app.py"]
+    image: parakeet-tdt-0.6b-v2-stt:latest
 
     ports:
       - "5023:5023"
-    expose:
-      - "5023"
 
     volumes:
       - /home/ubuntu/characterxyz/development/parakeet-tdt-0.6b-v2/model:/app/model
