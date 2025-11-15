@@ -32,4 +32,4 @@ lhotse==1.28.0
 cython
 einops==0.7.0
 datasets==2.19.1
-nv-one-logger==1.0.0
+
