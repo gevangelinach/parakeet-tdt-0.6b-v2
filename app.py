@@ -3,83 +3,141 @@ import tempfile
 import setproctitle
 import nemo.collections.asr as nemo_asr
 import torch
-import librosa
+import numpy as np
 import soundfile as sf
+import resampy
 from flask import Flask, request, jsonify
 
-# === OPTIONAL BUT RECOMMENDED (Disable CUDA Graphs) ===
+# ==========================
+#  SYSTEM LEVEL OPTIMIZATIONS
+# ==========================
+
+# Disable CUDA Graphs (fixes replay errors)
 os.environ["NEMO_CONVERT_CUDA_GRAPHS"] = "0"
+
+# Faster GPU kernels
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.benchmark = True
+
+# Use RAM disk for temporary files (VERY FAST)
+TMP_DIR = "/dev/shm"
+if not os.path.exists(TMP_DIR):
+    TMP_DIR = tempfile.gettempdir()  # fallback if shm unavailable
+
 
 setproctitle.setproctitle("parakeet-tdt-0.6b-v2-stt")
 
-# === CONFIG ===
+# ==========================
+#  CONFIG
+# ==========================
 MODEL_PATH = "/app/model/parakeet-tdt-0.6b-v2.nemo"
 BATCH_SIZE = 1
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"Loading model on {DEVICE}...")
+USE_FP16 = True  # Enable FP16 acceleration if GPU supports it
 
-# === LOAD MODEL ===
+print(f"Loading model on: {DEVICE}")
+
+
+# ==========================
+#  LOAD MODEL ONCE
+# ==========================
 asr_model = nemo_asr.models.ASRModel.restore_from(
     restore_path=MODEL_PATH,
     map_location=DEVICE
 )
+
+# Move to GPU
 asr_model = asr_model.to(DEVICE)
+
+# FP16 acceleration
+if USE_FP16 and DEVICE == "cuda":
+    asr_model = asr_model.half()
+    print("Model converted to FP16 mode for maximum speed.")
+
 asr_model.eval()
+
 print("Model Loaded Successfully!")
 
-# === SAFE WARMUP (NO transcribe() to avoid CUDA Graph issues) ===
-print("Running safe warmup inference...")
+
+# ==========================
+#  SAFE WARMUP (NO transcribe())
+# ==========================
+print("Running warmup inference...")
+
 try:
     with torch.inference_mode():
-        dummy_audio = torch.randn(1, 16000).to(DEVICE)
-        dummy_len = torch.tensor([16000]).to(DEVICE)
+        # Multiple lengths warmup (1s, 3s, 6s)
+        warmup_lengths = [16000, 48000, 96000]
 
-        # Use forward() instead of transcribe() to avoid CUDA graph replay errors
-        _ = asr_model.forward(
-            input_signal=dummy_audio,
-            input_signal_length=dummy_len
-        )
+        for L in warmup_lengths:
+            dummy = torch.randn(1, L).to(DEVICE)
+            if USE_FP16 and DEVICE == "cuda":
+                dummy = dummy.half()
+
+            dummy_len = torch.tensor([L]).to(DEVICE)
+            _ = asr_model.forward(
+                input_signal=dummy,
+                input_signal_length=dummy_len
+            )
 
     print("Warmup complete. Model ready!")
 
-except Exception as warmup_error:
-    print(f"Warmup skipped due to: {warmup_error}")
+except Exception as warm_err:
+    print(f"Warmup skipped due to: {warm_err}")
 
-# === FLASK APP ===
+
+# ==========================
+#  FLASK APP
+# ==========================
 app = Flask(__name__)
+
+
+def fast_load_audio(path):
+    """Load + resample + mono convert faster than librosa."""
+    audio, sr = sf.read(path)
+
+    # Convert stereo → mono
+    if isinstance(audio, np.ndarray) and audio.ndim > 1:
+        audio = audio.mean(axis=1)
+
+    # Resample if needed
+    if sr != 16000:
+        audio = resampy.resample(audio, sr, 16000)
+
+    return audio.astype(np.float32)
 
 
 @app.route("/transcribe", methods=["POST"])
 def transcribe():
     if "file" not in request.files:
-        return jsonify({"error": "Missing audio file in request"}), 400
+        return jsonify({"error": "Missing audio file"}), 400
 
     file = request.files["file"]
     if not file.filename:
         return jsonify({"error": "Empty filename"}), 400
 
     uploaded_path = None
-    mono_path = None
 
     try:
-        # Save uploaded file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+        # Save in RAM disk → super fast
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=TMP_DIR) as tmp:
             file.save(tmp.name)
             uploaded_path = tmp.name
 
-        # Convert to 16kHz mono
-        y, _ = librosa.load(uploaded_path, sr=16000, mono=True)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as mono_tmp:
-            sf.write(mono_tmp.name, y, 16000)
-            mono_path = mono_tmp.name
+        # Fast audio loading
+        audio = fast_load_audio(uploaded_path)
 
-        # Perform transcription
+        # Write mono + resampled audio to another temp file
+        mono_path = uploaded_path + "_mono.wav"
+        sf.write(mono_path, audio, 16000)
+
+        # Run transcription
         result = asr_model.transcribe(
             [mono_path],
             batch_size=BATCH_SIZE
         )
 
-        # Robust extractor: supports .text or raw string output
+        # Supports both Nemo "text" object or raw string
         first = result[0]
         text = getattr(first, "text", str(first)).strip()
 
@@ -92,12 +150,12 @@ def transcribe():
         }), 500
 
     finally:
-        # Always clean temporary files safely
-        for path in [uploaded_path, mono_path]:
+        # ALWAYS clean files
+        for p in [uploaded_path, uploaded_path + "_mono.wav" if uploaded_path else None]:
             try:
-                if path and os.path.exists(path):
-                    os.unlink(path)
-            except Exception:
+                if p and os.path.exists(p):
+                    os.unlink(p)
+            except:
                 pass
 
 
@@ -108,7 +166,7 @@ def health():
 
 @app.route("/", methods=["GET"])
 def index():
-    return "Parakeet TDT 0.6B v2 STT API is running!", 200
+    return "🔥 Parakeet TDT 0.6B v2 — Ultra-Optimized STT API Running!", 200
 
 
 if __name__ == "__main__":
