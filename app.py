@@ -7,11 +7,14 @@ import librosa
 import soundfile as sf
 from flask import Flask, request, jsonify
 
+# === OPTIONAL BUT RECOMMENDED (Disable CUDA Graphs) ===
+os.environ["NEMO_CONVERT_CUDA_GRAPHS"] = "0"
+
 setproctitle.setproctitle("parakeet-tdt-0.6b-v2-stt")
 
 # === CONFIG ===
 MODEL_PATH = "/app/model/parakeet-tdt-0.6b-v2.nemo"
-BATCH_SIZE = 10
+BATCH_SIZE = 1
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Loading model on {DEVICE}...")
 
@@ -24,22 +27,23 @@ asr_model = asr_model.to(DEVICE)
 asr_model.eval()
 print("Model Loaded Successfully!")
 
-# === WARMUP ===
-print("Running warmup inference...")
-with torch.inference_mode():
-    dummy_audio = torch.randn(1, 16000).to(DEVICE)
-    dummy_len = torch.tensor([16000]).to(DEVICE)
-    try:
-        _ = asr_model.transcribe(
-            audio=dummy_audio,
-            length=dummy_len,
-            partial_audio=True
-        )
-        print("Warmup complete. Model ready!")
-    except Exception as warmup_error:
-        print(f"Warmup failed: {warmup_error}")
-        # Still allow app to run
+# === SAFE WARMUP (NO transcribe() to avoid CUDA Graph issues) ===
+print("Running safe warmup inference...")
+try:
+    with torch.inference_mode():
+        dummy_audio = torch.randn(1, 16000).to(DEVICE)
+        dummy_len = torch.tensor([16000]).to(DEVICE)
 
+        # Use forward() instead of transcribe() to avoid CUDA graph replay errors
+        _ = asr_model.forward(
+            input_signal=dummy_audio,
+            input_signal_length=dummy_len
+        )
+
+    print("Warmup complete. Model ready!")
+
+except Exception as warmup_error:
+    print(f"Warmup skipped due to: {warmup_error}")
 
 # === FLASK APP ===
 app = Flask(__name__)
@@ -69,13 +73,13 @@ def transcribe():
             sf.write(mono_tmp.name, y, 16000)
             mono_path = mono_tmp.name
 
-        # Run transcription
+        # Perform transcription
         result = asr_model.transcribe(
             [mono_path],
             batch_size=BATCH_SIZE
         )
 
-        # Robust: Handle both raw strings or objects with .text
+        # Robust extractor: supports .text or raw string output
         first = result[0]
         text = getattr(first, "text", str(first)).strip()
 
@@ -88,13 +92,13 @@ def transcribe():
         }), 500
 
     finally:
-        # Clean all temporary files no matter what
+        # Always clean temporary files safely
         for path in [uploaded_path, mono_path]:
             try:
                 if path and os.path.exists(path):
                     os.unlink(path)
             except Exception:
-                pass  # Avoid crashing due to cleanup failure
+                pass
 
 
 @app.route("/health", methods=["GET"])
